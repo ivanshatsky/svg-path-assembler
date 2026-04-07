@@ -10,7 +10,7 @@
 //
 // Supported SVG path commands: M, L, H, V, A, Q, T, C, S, Z
 // Both absolute (uppercase) and relative (lowercase) variants are supported
-// during parsing. Output is always in absolute coordinates.
+// during parsing. Output is in absolute or relative coordinates.
 // ---------------------------------------------------------------------------
 
 
@@ -134,7 +134,8 @@ $paths_cap = [
 //   'dest' => [gx, gy]     — group indices for the destination (end) point
 //   'ctrl' => [[gx,gy],…]  — group indices for any control points (in order)
 //
-// Group numbering starts at 1 (group 0 is the whole match).
+// Group numbering starts at 2 (group 0 is the whole match, group 1 is a match
+// starting with the command letter skipping possible heading space(s)).
 // We count through each pattern in $paths_cap in array order to assign them.
 //
 // HOW TO RECOUNT if you change $paths_cap:
@@ -143,26 +144,26 @@ $paths_cap = [
 //   commands' groups.  Each (${rgx_pnt}) or (${rgx_rad}) in the pattern adds
 //   one group.
 //
-//   L:  2 groups  → dest=[1,2]                           running total: 2
-//   H:  1 group   → dest=[3, null]  (y from prev point)  running total: 3
-//   V:  1 group   → dest=[null, 4]  (x from prev point)  running total: 4
-//   A:  7 groups  → arc params=[5,6,7,8,9], dest=[10,11] running total: 11
-//   Q:  4 groups  → ctrl=[[12,13]], dest=[14,15]          running total: 15
-//   T:  2 groups  → dest=[16,17]                          running total: 17
-//   C:  6 groups  → ctrl=[[18,19],[20,21]], dest=[22,23]  running total: 23
-//   S:  4 groups  → ctrl=[[24,25]], dest=[26,27]          running total: 27
+//   L:  2 groups  → dest=[2,3]                            running total: 3
+//   H:  1 group   → dest=[4, null]  (y from prev point)   running total: 4
+//   V:  1 group   → dest=[null, 5]  (x from prev point)   running total: 5
+//   A:  7 groups  → arc params=[6,7,8,9,10], dest=[11,12] running total: 12
+//   Q:  4 groups  → ctrl=[[13,14]], dest=[15,16]          running total: 16
+//   T:  2 groups  → dest=[17,18]                          running total: 18
+//   C:  6 groups  → ctrl=[[19,20],[21,22]], dest=[23,24]  running total: 24
+//   S:  4 groups  → ctrl=[[25,26]], dest=[27,28]          running total: 28
 // ---------------------------------------------------------------------------
 
 $cmd_group_map = [
-    'L' => ['dest' => [1,  2],           'ctrl' => []],
-    'H' => ['dest' => [3,  null],        'ctrl' => []],  // y carried from prev point
-    'V' => ['dest' => [null, 4],         'ctrl' => []],  // x carried from prev point
-    'A' => ['dest' => [10, 11],          'ctrl' => [],
-            'arc'  => [5, 6, 7, 8, 9]], // rx,ry,rotation,large-flag,sweep-flag
-    'Q' => ['dest' => [14, 15],          'ctrl' => [[12, 13]]],
-    'T' => ['dest' => [16, 17],          'ctrl' => []],
-    'C' => ['dest' => [22, 23],          'ctrl' => [[18, 19], [20, 21]]],
-    'S' => ['dest' => [26, 27],          'ctrl' => [[24, 25]]],
+    'L' => ['dest' => [2,  3],           'ctrl' => []],
+    'H' => ['dest' => [4,  null],        'ctrl' => []],  // y carried from prev point
+    'V' => ['dest' => [null, 5],         'ctrl' => []],  // x carried from prev point
+    'A' => ['dest' => [11, 12],          'ctrl' => [],
+            'arc'  => [6, 7, 8, 9, 10]], // rx,ry,rotation,large-flag,sweep-flag
+    'Q' => ['dest' => [15, 16],          'ctrl' => [[13, 14]]],
+    'T' => ['dest' => [17, 18],          'ctrl' => []],
+    'C' => ['dest' => [23, 24],          'ctrl' => [[19, 20], [21, 22]]],
+    'S' => ['dest' => [27, 28],          'ctrl' => [[25, 26]]],
 ];
 
 
@@ -638,7 +639,7 @@ function parse_path(string $path): ?SVGPath {
     for ($i = 0; $i < $num_commands; $i++) {
 
         // The command letter is the first character of the full match.
-        $raw_cmd       = $path_commands[0][$i][0];  // e.g. 'c', 'L', 'A'
+        $raw_cmd       = $path_commands[1][$i][0];  // e.g. 'c', 'L', 'A'
         $upcase_cmd    = strtoupper($raw_cmd);
         $is_relative   = ctype_lower($raw_cmd);      // lowercase → relative coords
 
@@ -948,7 +949,7 @@ fclose($infile);
 // ---------------------------------------------------------------------------
 
 foreach ($known_paths as $path) {
-    $d = $path->get_path(true);   // relative coordinates
+    $d = $path->get_path(false);   // absolute coordinates, change to "true" for relative
     if ($d !== null) {
         echo '<path d="', $d, '"/>', PHP_EOL;
     }
